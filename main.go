@@ -2,22 +2,21 @@ package main
 
 import (
 	"fmt"
-	"time"
-	"sync"
+	"net/http"
+	"github.com/hannanmiah/golang-tutorial/handlers"
 )
 
-func say(s string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	time.Sleep(time.Second)
-	fmt.Println(s)
-}
-
-
 func main() {
-	wg := sync.WaitGroup{}
-	fmt.Println("start")
-	wg.Add(1)
-	go say("hello", &wg)
-	wg.Wait()
-	fmt.Println("done")
+	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello World")
+	})
+
+	http.HandleFunc("GET /products", handlers.GetProducts)
+	http.HandleFunc("POST /products", handlers.AddProduct)
+	http.HandleFunc("GET /products/{id}", handlers.GetProduct)
+	http.HandleFunc("PUT /products/{id}", handlers.UpdateProduct)
+	http.HandleFunc("DELETE /products/{id}", handlers.DeleteProduct)
+
+	fmt.Println("Server is running on port 8000")
+	http.ListenAndServe(":8000", nil)
 }
