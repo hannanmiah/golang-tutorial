@@ -7,13 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"github.com/hannanmiah/golang-tutorial/config"
 	"github.com/hannanmiah/golang-tutorial/handlers"
 	"github.com/hannanmiah/golang-tutorial/middleware"
 	"github.com/hannanmiah/golang-tutorial/models"
 )
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("ecommerce.db"), &gorm.Config{})
+	cfg := config.LoadConfig()
+
+	db, err := gorm.Open(sqlite.Open(cfg.DatabasePath), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -76,6 +79,6 @@ func main() {
 		admin.PUT("/orders/:id/status", orderHandler.UpdateOrderStatus)
 	}
 
-	fmt.Println("E-Commerce API Server is running on port 8000")
-	router.Run(":8000")
+	fmt.Printf("E-Commerce API Server is running on port %s\n", cfg.ServerPort)
+	router.Run(":" + cfg.ServerPort)
 }

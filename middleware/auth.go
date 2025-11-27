@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hannanmiah/golang-tutorial/config"
 )
 
 type Claims struct {
@@ -16,7 +17,12 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-var jwtSecret = []byte("your-secret-key")
+var jwtSecret []byte
+
+func init() {
+	cfg := config.LoadConfig()
+	jwtSecret = []byte(cfg.JWTSecret)
+}
 
 func GenerateJWT(userID uint, email, role string) (string, error) {
 	claims := &Claims{
