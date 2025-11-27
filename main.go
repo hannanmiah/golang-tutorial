@@ -2,21 +2,80 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"github.com/hannanmiah/golang-tutorial/handlers"
+	"github.com/hannanmiah/golang-tutorial/middleware"
+	"github.com/hannanmiah/golang-tutorial/models"
 )
 
 func main() {
-	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello World")
+	db, err := gorm.Open(sqlite.Open("ecommerce.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Product{},
+		&models.Cart{},
+		&models.Order{},
+		&models.OrderItem{},
+	); err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
+	router := gin.Default()
+
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "Welcome to E-Commerce API",
+			"version": "1.0.0",
+		})
 	})
 
-	http.HandleFunc("GET /products", handlers.GetProducts)
-	http.HandleFunc("POST /products", handlers.AddProduct)
-	http.HandleFunc("GET /products/{id}", handlers.GetProduct)
-	http.HandleFunc("PUT /products/{id}", handlers.UpdateProduct)
-	http.HandleFunc("DELETE /products/{id}", handlers.DeleteProduct)
+	userHandler := handlers.NewUserHandler(db)
+	productHandler := handlers.NewProductHandler(db)
+	cartHandler := handlers.NewCartHandler(db)
+	orderHandler := handlers.NewOrderHandler(db)
 
-	fmt.Println("Server is running on port 8000")
-	http.ListenAndServe(":8000", nil)
+	router.POST("/register", userHandler.Register)
+	router.POST("/login", userHandler.Login)
+
+	protected := router.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.GET("/profile", userHandler.Profile)
+		
+		protected.GET("/products", productHandler.GetProducts)
+		protected.GET("/products/:id", productHandler.GetProduct)
+		protected.POST("/products", productHandler.CreateProduct)
+		protected.PUT("/products/:id", productHandler.UpdateProduct)
+		protected.DELETE("/products/:id", productHandler.DeleteProduct)
+		protected.GET("/my-products", productHandler.GetMyProducts)
+		
+		protected.GET("/cart", cartHandler.GetCart)
+		protected.POST("/cart", cartHandler.AddToCart)
+		protected.PUT("/cart/:id", cartHandler.UpdateCartItem)
+		protected.DELETE("/cart/:id", cartHandler.RemoveFromCart)
+		protected.DELETE("/cart", cartHandler.ClearCart)
+		
+		protected.GET("/orders", orderHandler.GetOrders)
+		protected.GET("/orders/:id", orderHandler.GetOrder)
+		protected.POST("/orders", orderHandler.CreateOrder)
+	}
+
+	admin := router.Group("/admin")
+	admin.Use(middleware.AuthMiddleware())
+	admin.Use(middleware.AdminMiddleware())
+	{
+		admin.GET("/orders", orderHandler.GetAllOrders)
+		admin.PUT("/orders/:id/status", orderHandler.UpdateOrderStatus)
+	}
+
+	fmt.Println("E-Commerce API Server is running on port 8000")
+	router.Run(":8000")
 }
